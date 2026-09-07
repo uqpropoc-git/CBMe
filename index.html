@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBMe - Cybernetic AI Agent</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Marked.js untuk render Markdown -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); }
+      50% { box-shadow: 0 0 25px rgba(168, 85, 247, 0.5); }
+    }
+    .futuristic-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    .futuristic-input {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    .futuristic-input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    }
+    .chat-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .chat-scroll::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.3);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-cyan-500 selection:text-black">
+
+  <!-- Header Section -->
+  <header class="futuristic-card sticky top-0 z-50 px-4 py-3 flex items-center justify-between border-b border-cyan-500/20">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+        <i data-lucide="bot" class="w-6 h-6 text-white"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-lg tracking-wider bg-gradient-to-r from-cyan-400 to-fuchsia-500 bg-clip-text text-transparent">CBMe AI</h1>
+        <p class="text-xs text-slate-400 flex items-center gap-1">
+          <span id="status-indicator" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="current-provider">Auto-Failover Ready</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Mode Selector & Settings -->
+    <div class="flex items-center space-x-2">
+      <select id="provider-select" class="futuristic-input text-xs text-cyan-300 rounded-lg px-2 py-1.5 focus:outline-none">
+        <option value="auto">⚡ Auto API (Gemini/ChatGPT)</option>
+        <option value="gemini">🔹 Force Gemini</option>
+        <option value="chatgpt">🔸 Force ChatGPT</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Main Chat Workspace -->
+  <main id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4 chat-scroll max-w-4xl mx-auto w-full">
+    
+    <!-- Welcome Card -->
+    <div class="futuristic-card rounded-2xl p-6 text-center space-y-3 my-auto border border-cyan-500/20">
+      <div class="w-16 h-16 mx-auto rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 mb-2 border border-cyan-500/30">
+        <i data-lucide="sparkles" class="w-8 h-8"></i>
+      </div>
+      <h2 class="text-xl font-bold text-cyan-300">Selamat Datang di CBMe AI</h2>
+      <p class="text-sm text-slate-400 max-w-md mx-auto">
+        Asisten AI Futuristik siap menjawab pertanyaan Anda, menganalisis file/gambar, dan bertransisi otomatis saat lalu lintas API padat.
+      </p>
+    </div>
+
+  </main>
+
+  <!-- File Preview Indicator -->
+  <div id="file-preview-bar" class="hidden max-w-4xl mx-auto w-full px-4 py-2">
+    <div class="futuristic-card rounded-lg p-2 flex items-center justify-between text-xs text-cyan-300">
+      <div class="flex items-center space-x-2 truncate">
+        <i data-lucide="paperclip" class="w-4 h-4"></i>
+        <span id="file-name-display" class="truncate">filename.pdf</span>
+      </div>
+      <button onclick="removeFile()" class="text-rose-400 hover:text-rose-300">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Footer Input Workspace -->
+  <footer class="p-4 border-t border-cyan-500/20 futuristic-card sticky bottom-0">
+    <div class="max-w-4xl mx-auto flex items-center gap-2">
+      
+      <!-- Upload File Button -->
+      <label class="cursor-pointer futuristic-input p-3 rounded-xl text-cyan-400 hover:text-cyan-300 hover:bg-slate-800/80 transition flex items-center justify-center">
+        <i data-lucide="paperclip" class="w-5 h-5"></i>
+        <input type="file" id="file-input" class="hidden" onchange="handleFileSelect(event)">
+      </label>
+
+      <!-- Prompt Input -->
+      <input type="text" id="user-input" placeholder="Ketik pesan atau tanyakan sesuatu..." 
+             class="flex-1 futuristic-input text-sm rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none"
+             onkeypress="if(event.key === 'Enter') sendMessage()">
+
+      <!-- Send Button -->
+      <button onclick="sendMessage()" id="send-btn"
+              class="bg-gradient-to-r from-cyan-500 to-fuchsia-600 hover:from-cyan-400 hover:to-fuchsia-500 text-white p-3 rounded-xl shadow-lg shadow-cyan-500/20 transition flex items-center justify-center">
+        <i data-lucide="send" class="w-5 h-5"></i>
+      </button>
+
+    </div>
+  </footer>
+
+  <script>
+    // === MASUKKAN URL GOOGLE APPS SCRIPT WEB APP ANDA DI SINI ===
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwIIqGj7bQNqSjtaiFpuq5_Ipo-H28oVtUTc4X2bQq5BjV_cMc9OYxAzulRvXGFrXco/exec"; 
+
+    let selectedFileBase64 = null;
+    let selectedFileMime = null;
+
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Register PWA Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(() => console.log('Service Worker Registered'))
+        .catch(err => console.error('SW Reg Error:', err));
+    }
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        selectedFileBase64 = e.target.result;
+        selectedFileMime = file.type;
+        document.getElementById('file-name-display').innerText = file.name;
+        document.getElementById('file-preview-bar').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeFile() {
+      selectedFileBase64 = null;
+      selectedFileMime = null;
+      document.getElementById('file-input').value = "";
+      document.getElementById('file-preview-bar').classList.add('hidden');
+    }
+
+    async function sendMessage() {
+      const inputEl = document.getElementById('user-input');
+      const prompt = inputEl.value.trim();
+      const provider = document.getElementById('provider-select').value;
+
+      if (!prompt && !selectedFileBase64) return;
+
+      // Render User Message
+      appendMessage('user', prompt, selectedFileBase64);
+      
+      // Clear Inputs
+      inputEl.value = '';
+      const currentFile = selectedFileBase64 ? { base64: selectedFileBase64, mimeType: selectedFileMime } : null;
+      removeFile();
+
+      // Render Loading Indicator
+      const loadingId = appendLoading();
+
+      try {
+        const response = await fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            prompt: prompt,
+            file: currentFile,
+            provider: provider
+          })
+        });
+
+        const data = await response.json();
+        removeLoading(loadingId);
+
+        if (data.status === 'success') {
+          appendMessage('ai', data.response, null, data.providerUsed);
+        } else {
+          appendMessage('ai', `⚠️ **Error:** ${data.message}`);
+        }
+
+      } catch (error) {
+        removeLoading(loadingId);
+        appendMessage('ai', '⚠️ **Network Error:** Gagal terhubung ke backend server.');
+      }
+    }
+
+    function appendMessage(sender, text, fileData = null, providerInfo = null) {
+      const chatContainer = document.getElementById('chat-container');
+      const msgDiv = document.createElement('div');
+      
+      const isUser = sender === 'user';
+      msgDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in`;
+
+      let contentHtml = '';
+      if (text) {
+        contentHtml = isUser ? text : marked.parse(text);
+      }
+
+      let fileHtml = '';
+      if (fileData) {
+        fileHtml = `<div class="mb-2 text-xs text-cyan-300 flex items-center gap-1"><i data-lucide="file-text" class="w-3 h-3"></i> Lampiran Terkirim</div>`;
+      }
+
+      let badgeHtml = '';
+      if (providerInfo) {
+        badgeHtml = `<div class="mt-2 text-[10px] text-cyan-400/80 font-mono flex items-center gap-1"><i data-lucide="cpu" class="w-3 h-3"></i> Processed via ${providerInfo}</div>`;
+      }
+
+      msgDiv.innerHTML = `
+        <div class="max-w-[85%] rounded-2xl px-4 py-3 ${
+          isUser 
+            ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-none' 
+            : 'futuristic-card text-slate-200 rounded-bl-none border border-cyan-500/20'
+        }">
+          ${fileHtml}
+          <div class="prose prose-invert prose-sm text-slate-100">${contentHtml}</div>
+          ${badgeHtml}
+        </div>
+      `;
+
+      chatContainer.appendChild(msgDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      lucide.createIcons();
+    }
+
+    function appendLoading() {
+      const chatContainer = document.getElementById('chat-container');
+      const id = 'loading-' + Date.now();
+      const loadingDiv = document.createElement('div');
+      loadingDiv.id = id;
+      loadingDiv.className = 'flex justify-start';
+      loadingDiv.innerHTML = `
+        <div class="futuristic-card rounded-2xl rounded-bl-none px-4 py-3 border border-cyan-500/20 flex items-center space-x-2 text-cyan-400 text-xs">
+          <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+          <span>CBMe sedang memproses kueri...</span>
+        </div>
+      `;
+      chatContainer.appendChild(loadingDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      lucide.createIcons();
+      return id;
+    }
+
+    function removeLoading(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+  </script>
+</body>
+</html>
